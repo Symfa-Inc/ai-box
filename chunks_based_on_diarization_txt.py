@@ -1,26 +1,52 @@
 import re
 import os
 import glob
-from openai import OpenAI
 from recordclass import recordclass
 from pydub import AudioSegment
 from moviepy.editor import VideoFileClip
-# AudioSegment.converter = 'C:/ProgramData/chocolatey/bin/ffmpeg.exe'
+
+import torch
+from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor, pipeline
+
+device = "cuda:0" if torch.cuda.is_available() else "cpu"
+torch_dtype = torch.float16 if torch.cuda.is_available() else torch.float32
+
+w_model_id = "openai/whisper-large-v3"
+
+w_model = AutoModelForSpeechSeq2Seq.from_pretrained(
+    w_model_id, torch_dtype=torch_dtype, low_cpu_mem_usage=True, use_safetensors=True
+)
+# model = model.to_bettertransformer()
+w_model.to(device)
+
+processor = AutoProcessor.from_pretrained(w_model_id)
+
+w_pipe = pipeline(
+    "automatic-speech-recognition",
+    model=w_model,
+    tokenizer=processor.tokenizer,
+    feature_extractor=processor.feature_extractor,
+    max_new_tokens=128,
+    chunk_length_s=30,
+    batch_size=16,
+    return_timestamps=True,
+    torch_dtype=torch_dtype,
+    device=device,
+)
 
 from pyannote.audio import Pipeline
 
 read_key = os.environ.get('HF_TOKEN', None)
 print(f"HF_TOKEN: {read_key}")
 pyannote_pipeline = Pipeline.from_pretrained('pyannote/speaker-diarization', use_auth_token=read_key)
-openAiClient = OpenAI()
+
 def transcribe_with_whisper(file_path):
-    audio_file = open(file_path, "rb")
-    transcript = openAiClient.audio.transcriptions.create(
-      model="whisper-1",
-      file=audio_file,
-      response_format="text"
-    )
-    return transcript
+    if file_path is not None:
+        audio = file_path
+    else:
+        return "You must provide a mic recording or a file"
+    result = w_pipe(audio, generate_kwargs={"task": "transcribe"})
+    return result["text"]
 
 def extract_audio_from_video(video_path, audio_path):
     # Извлечение аудиодорожки из видео
