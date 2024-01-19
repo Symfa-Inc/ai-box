@@ -38,7 +38,9 @@ from pyannote.audio import Pipeline
 
 read_key = os.environ.get('HF_TOKEN', None)
 print(f"HF_TOKEN: {read_key}")
-pyannote_pipeline = Pipeline.from_pretrained('pyannote/speaker-diarization', use_auth_token=read_key)
+pyannote_pipeline = Pipeline.from_pretrained('pyannote/speaker-diarization-3.1', use_auth_token=read_key)
+# send pipeline to GPU (when available)
+pyannote_pipeline.to(torch.device("cuda:0"))
 
 def transcribe_with_whisper(file_path):
     if file_path is not None:
@@ -95,12 +97,14 @@ def processAllMp4Files():
             os.makedirs(chunks_path, exist_ok=True)
 
             extract_audio_from_video(file_path, mp3_path)
+            print(f"audio extracted")
             dz = pyannote_pipeline(mp3_path)
-
+            print(f"pyannote_pipeline completed")
             dzList = []
             Tran = recordclass('Tran', 'start end speaker')
 
             for l in dz:
+              print(f"checking dz: {l}")
               start, end =  tuple(re.findall('[0-9]+:[0-9]+:[0-9]+\.[0-9]+', string=l))
               start = millisec(start) - 200
               end = millisec(end)
@@ -110,7 +114,9 @@ def processAllMp4Files():
               else:
                 dzList.append(Tran(start, end, speaker = lex[0]))
 
+            print(f"split_audio started")
             chunks = split_audio(mp3_path, dzList)
+            print(f"chunks are ready")
 
             for i, chunk in enumerate(chunks):
                 chunk_name = f"processed/{file_name_without_extension}/chunks/{i:04}-{chunk[1]}-({chunk[2]}).mp3"
