@@ -1,11 +1,13 @@
 import re
 import os
 import glob
+import time
 from recordclass import recordclass
 from pydub import AudioSegment
 from moviepy.editor import VideoFileClip
 
 import torch
+import torchaudio
 from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor, pipeline
 
 device = "cuda:0" if torch.cuda.is_available() else "cpu"
@@ -38,9 +40,11 @@ from pyannote.audio import Pipeline
 
 read_key = os.environ.get('HF_TOKEN', None)
 print(f"HF_TOKEN: {read_key}")
-pyannote_pipeline = Pipeline.from_pretrained('pyannote/speaker-diarization-3.1', use_auth_token=read_key)
+pyannote_pipeline = Pipeline.from_pretrained(
+    'pyannote/speaker-diarization-3.1',
+    use_auth_token=read_key)
 # send pipeline to GPU (when available)
-pyannote_pipeline.to(torch.device("cuda:0"))
+pyannote_pipeline.to(torch.device("cuda"))
 
 def transcribe_with_whisper(file_path):
     if file_path is not None:
@@ -98,8 +102,14 @@ def processAllMp4Files():
 
             extract_audio_from_video(file_path, mp3_path)
             print(f"audio extracted")
-            dz = pyannote_pipeline(mp3_path)
-            print(f"pyannote_pipeline completed")
+            waveform, sample_rate = torchaudio.load(mp3_path)
+
+            start_time = time.time()
+            dz = pyannote_pipeline({"waveform": waveform, "sample_rate": sample_rate}).splitlines()
+            end_time = time.time()  # End time
+            processing_time = end_time - start_time  # Calculate processing time
+
+            print(f"pyannote_pipeline completed. Processing Time: {processing_time:.2f} seconds\n")
             dzList = []
             Tran = recordclass('Tran', 'start end speaker')
 
