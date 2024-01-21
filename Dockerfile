@@ -1,7 +1,8 @@
 FROM python:3.10.4-slim-bullseye
 
 WORKDIR /usr/src/app
-RUN apt-get update -y && apt-get install ffmpeg -y
+RUN apt-get update -y && apt-get install ffmpeg libavcodec-extra -y
+RUN apt-get install libpq-dev -y
 RUN apt-get install gcc -y
 COPY requirements.txt ./
 RUN pip3 install -r requirements.txt

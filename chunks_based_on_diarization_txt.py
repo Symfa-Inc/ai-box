@@ -1,5 +1,6 @@
 import re
 import os
+import psycopg2
 import glob
 import time
 from recordclass import recordclass
@@ -9,6 +10,17 @@ from moviepy.editor import VideoFileClip
 import torch
 import torchaudio
 from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor, pipeline
+
+pgParams = {
+    'database': os.getenv('PG_DATABASE'),
+    'user': os.getenv('PG_USER'),
+    'password': os.getenv('PG_PASS'),
+    'host': os.getenv('PG_HOST'),
+    'port': 5432
+}
+
+conn = psycopg2.connect(**pgParams)
+cur = conn.cursor()
 
 device = "cuda:0" if torch.cuda.is_available() else "cpu"
 torch_dtype = torch.float16 if torch.cuda.is_available() else torch.float32
@@ -92,6 +104,7 @@ def processAllMp4Files():
 
     # List all .mp4 files in this folder
     for file in os.listdir(folder_path):
+        f_start_time = time.time()
         if file.endswith('.mp4'):
             file_name_without_extension, _ = os.path.splitext(file)
             file_path = os.path.join(folder_path, file)
@@ -144,6 +157,7 @@ def processAllMp4Files():
             # Файл для сохранения результатов
             result_file = f"processed/{file_name_without_extension}/transcriptions.txt"
 
+            full_transcription = ""
             with open(result_file, "w", encoding='utf-8') as output_file:
                 for file_path in file_paths:
                     fileNamePattern = re.compile('(SPEAKER_\d+)-\((.+)\)\.mp3')
@@ -151,7 +165,16 @@ def processAllMp4Files():
                     speaker = match.group(1)
                     timecode = match.group(2)
                     transcription = transcribe_with_whisper(file_path)
-                    output_file.write(f"{speaker}, time: {timecode}: {transcription}\n")
+                    formatted_transcription = f"{speaker}, time: {timecode}: {transcription}\n"
+                    output_file.write(formatted_transcription)
+                    full_transcription += formatted_transcription;
                     print(f"{speaker}, time: {timecode}: {transcription[:30]}...")
 
-            print(f"Транскрипции сохранены в {result_file}")
+            f_end_time = time.time()  # End time
+            f_processing_time = f_end_time - f_start_time  # Calculate processing time
+
+            file_id = file_name_without_extension
+            cur.execute("update movies set processed = TRUE, status='processed', transcription = %s, processing_time = %s  where \"gDriveId\" = %s",
+                        (full_transcription, f_processing_time, file_id))
+
+            print(f"Транскрипции сохранены в {result_file}. Processing time: {f_processing_time:.2f}")
