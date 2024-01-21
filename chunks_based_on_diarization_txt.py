@@ -19,9 +19,6 @@ pgParams = {
     'port': 5432
 }
 
-conn = psycopg2.connect(**pgParams)
-cur = conn.cursor()
-
 device = "cuda:0" if torch.cuda.is_available() else "cpu"
 torch_dtype = torch.float16 if torch.cuda.is_available() else torch.float32
 
@@ -102,12 +99,23 @@ def processAllMp4Files():
     # Specify the directory you want to list
     folder_path = 'download'
 
+    conn = psycopg2.connect(**pgParams)
+    cur = conn.cursor()
+
     # List all .mp4 files in this folder
     for file in os.listdir(folder_path):
         f_start_time = time.time()
         if file.endswith('.mp4'):
             file_name_without_extension, _ = os.path.splitext(file)
             file_path = os.path.join(folder_path, file)
+
+            # check if the file expected to be processed
+            cur.execute("select id from movies m where m.processed = FALSE and m.\"gDriveId\" = %s",
+                        (file_name_without_extension,))
+            rows = cur.fetchall()
+
+            if not rows:
+                continue  # Break the loop if no more rows are returned
 
             chunks_path = f"processed/{file_name_without_extension}/chunks"
             mp3_path = f"processed/{file_name_without_extension}.mp3"
@@ -174,7 +182,15 @@ def processAllMp4Files():
             f_processing_time = f_end_time - f_start_time  # Calculate processing time
 
             file_id = file_name_without_extension
-            cur.execute("update movies set processed = TRUE, status='processed', transcription = %s, processing_time = %s  where \"gDriveId\" = %s",
+            cur.execute("""
+                update movies 
+                set processed = TRUE, status='processed', transcription = %s, processing_time = %s 
+                where "gDriveId" = %s
+                """,
                         (full_transcription, f_processing_time, file_id))
+            conn.commit()
 
-            print(f"Транскрипции сохранены в {result_file}. Processing time: {f_processing_time:.2f}")
+            print(f"Транскрипции сохранены в {result_file}. File {file_id} updated. Processing time: {f_processing_time:.2f}")
+
+    cur.close()
+    conn.close()

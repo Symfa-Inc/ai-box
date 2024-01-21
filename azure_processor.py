@@ -13,10 +13,10 @@ pgParams = {
     'port': 5432
 }
 
-conn = psycopg2.connect(**pgParams)
-cur = conn.cursor()
-
 def download_all_files_from_blob():
+    conn = psycopg2.connect(**pgParams)
+    cur = conn.cursor()
+
     # Create a BlobServiceClient
     blob_service_client = BlobServiceClient.from_connection_string(connection_string)
 
@@ -40,3 +40,6 @@ def download_all_files_from_blob():
         with open(file_path, "wb") as download_file:
             download_file.write(blob_client.download_blob().readall())
             print(f"File saved: {file_path}")
+
+    cur.close()
+    conn.close()
