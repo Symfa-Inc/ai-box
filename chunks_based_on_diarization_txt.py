@@ -105,7 +105,8 @@ def processAllMp4Files():
             waveform, sample_rate = torchaudio.load(mp3_path)
 
             start_time = time.time()
-            dz = pyannote_pipeline({"waveform": waveform, "sample_rate": sample_rate}).splitlines()
+            dz = pyannote_pipeline({"waveform": waveform, "sample_rate": sample_rate})
+            dz = f"{dz}".splitlines()
             end_time = time.time()  # End time
             processing_time = end_time - start_time  # Calculate processing time
 
@@ -114,9 +115,13 @@ def processAllMp4Files():
             Tran = recordclass('Tran', 'start end speaker')
 
             for l in dz:
-              print(f"checking dz: {l}")
+              # print(f"checking dz: {l}")
               start, end =  tuple(re.findall('[0-9]+:[0-9]+:[0-9]+\.[0-9]+', string=l))
-              start = millisec(start) - 200
+
+              start = millisec(start)
+              if start > 200:
+                start = start - 200
+
               end = millisec(end)
               lex = re.findall('SPEAKER_\d+', string=l)
               if len(dzList) > 0 and (dzList[-1].speaker == lex[0] or end - start < 1000):
@@ -134,13 +139,13 @@ def processAllMp4Files():
                 print(f"Сохранен отрезок: {chunk_name}")
 
             # Соберите все файлы по маске
-            file_paths = glob.glob(f"processed/chunks/{file_name_without_extension}/????-SPEAKER_??-*.mp3")
+            file_paths = glob.glob(f"processed/{file_name_without_extension}/chunks/????-SPEAKER_??-*.mp3")
 
             # Файл для сохранения результатов
             result_file = f"processed/{file_name_without_extension}/transcriptions.txt"
 
             with open(result_file, "w", encoding='utf-8') as output_file:
-                for file_path in file_paths[:5]:
+                for file_path in file_paths:
                     fileNamePattern = re.compile('(SPEAKER_\d+)-\((.+)\)\.mp3')
                     match = fileNamePattern.search(file_path)
                     speaker = match.group(1)
