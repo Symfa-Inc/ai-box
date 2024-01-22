@@ -1,1 +1,9 @@
 **/venv
+.env
+README.md
+runDocker.cmd
+.idea
+base_install.sh
+Dockerfile
+**/*.mp4
+**/*.mp3

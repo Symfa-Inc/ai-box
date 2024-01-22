@@ -9,9 +9,16 @@ RUN pip3 install -r requirements.txt
 RUN apt-get install dnsutils -y
 #ENV NVIDIA_VISIBLE_DEVICES=all
 COPY docker_init.py ./
-RUN HF_TOKEN=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 \
+RUN HF_TOKEN=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 TRANSFORMERS_CACHE=/.cache \
     python ./docker_init.py
 
 COPY . .
+
+RUN mkdir /.config && chmod a+rwx -R /.config
+RUN mkdir /.cache || chmod a+rwx -R /.cache
+RUN chmod a+rwx -R /usr/src/app/download
+RUN chmod a+rwx -R /usr/src/app/processed
+
+
 
 CMD [ "python", "./app.py" ]

@@ -16,7 +16,11 @@ pgParams = {
     'user': os.getenv('PG_USER'),
     'password': os.getenv('PG_PASS'),
     'host': os.getenv('PG_HOST'),
-    'port': 5432
+    'port': 5432,
+    "keepalives": 1,
+    "keepalives_idle": 30,
+    "keepalives_interval": 5,
+    "keepalives_count": 5,
 }
 
 device = "cuda:0" if torch.cuda.is_available() else "cpu"
