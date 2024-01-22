@@ -57,7 +57,8 @@ pyannote_pipeline = Pipeline.from_pretrained(
     'pyannote/speaker-diarization-3.1',
     use_auth_token=read_key)
 # send pipeline to GPU (when available)
-pyannote_pipeline.to(torch.device("cuda"))
+if torch.cuda.is_available():
+    pyannote_pipeline.to(torch.device("cuda"))
 
 def transcribe_with_whisper(file_path):
     if file_path is not None:
