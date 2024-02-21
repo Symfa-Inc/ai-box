@@ -170,6 +170,7 @@ def processAllMp4Files():
             # Файл для сохранения результатов
             result_file = f"processed/{file_name_without_extension}/transcriptions.txt"
 
+            file_paths = sorted(file_paths)
             full_transcription = ""
             with open(result_file, "w", encoding='utf-8') as output_file:
                 for file_path in file_paths:
