@@ -115,7 +115,7 @@ def processAllMp4Files():
             file_path = os.path.join(folder_path, file)
 
             # check if the file expected to be processed
-            cur.execute("select id from movies m where m.processed = FALSE and m.\"gDriveId\" = %s",
+            cur.execute("select id from movies m where m.status != 'completed' and m.gDriveId = %s",
                         (file_name_without_extension,))
             rows = cur.fetchall()
 
@@ -190,8 +190,8 @@ def processAllMp4Files():
             file_id = file_name_without_extension
             cur.execute("""
                 update movies 
-                set processed = TRUE, status='processed', transcription = %s, processing_time = %s 
-                where "gDriveId" = %s
+                set status='completed', transcription = %s, processing_time = %s 
+                where gDriveId = %s
                 """,
                         (full_transcription, f_processing_time, file_id))
             conn.commit()

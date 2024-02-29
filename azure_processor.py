@@ -30,7 +30,7 @@ def download_all_files_from_blob():
         file_id, _ = os.path.splitext(blob.name)
 
         # check if the file expected to be processed
-        cur.execute("select id from movies m where m.processed = FALSE and m.\"gDriveId\" = %s",
+        cur.execute("select id from movies m where m.status != 'completed' and m.gDriveId = %s",
                     (file_id,))
         rows = cur.fetchall()
 
