@@ -9,7 +9,7 @@ RUN pip3 install -r requirements.txt
 RUN apt-get install dnsutils -y
 #ENV NVIDIA_VISIBLE_DEVICES=all
 COPY docker_init.py ./
-RUN HF_TOKEN=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 TRANSFORMERS_CACHE=/.cache \
+RUN HF_TOKEN=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 \
     python ./docker_init.py
 
 COPY . .
