@@ -113,13 +113,13 @@ def processAllMp4Files():
     conn = psycopg2.connect(**pgParams)
     cur = conn.cursor()
 
-    cur.execute("select id, title from movies m where m.status = 'uploaded'")
+    cur.execute("select m.id, m.file_name from transcription_requests tr left join  movies m on m.file_name = tr.file_name where tr.status = 'uploaded'")
     files = cur.fetchall()
     # List all .mp4 files in this folder
     for file in files:
         f_start_time = time.time()
 
-        file_path = os.path.join(folder_path, file.title)
+        file_path = os.path.join(folder_path, file.file_name)
 
         chunks_path = f"processed/{file.id}/chunks"
         mp3_path = f"processed/{file.id}.mp3"
@@ -187,12 +187,19 @@ def processAllMp4Files():
         f_processing_time = f_end_time - f_start_time  # Calculate processing time
 
         file_id = file.id
+        file_name = file.file_name
         cur.execute("""
                 update movies 
                 set status='completed', transcription = %s, processing_time = %s 
                 where id = %s
                 """,
                     (full_transcription, f_processing_time, file_id))
+        cur.execute("""
+                update transcription_requests 
+                set status='completed'
+                where file_name = %s
+                """,
+                    (file_name))
         conn.commit()
 
         print(
