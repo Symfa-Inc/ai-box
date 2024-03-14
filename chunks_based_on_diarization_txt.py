@@ -199,7 +199,7 @@ def processAllMp4Files():
                 set status='completed'
                 where file_name = %s
                 """,
-                    (file_name))
+                    (file_name,))
         conn.commit()
 
         print(
