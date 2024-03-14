@@ -119,10 +119,12 @@ def processAllMp4Files():
     for file in files:
         f_start_time = time.time()
 
-        file_path = os.path.join(folder_path, file.file_name)
+        file_id = file[0]
+        file_name = file[1]
+        file_path = os.path.join(folder_path, file_name)
 
-        chunks_path = f"processed/{file.id}/chunks"
-        mp3_path = f"processed/{file.id}.mp3"
+        chunks_path = f"processed/{file_id}/chunks"
+        mp3_path = f"processed/{file_id}.mp3"
         os.makedirs(chunks_path, exist_ok=True)
 
         extract_audio_from_video(file_path, mp3_path)
@@ -159,15 +161,15 @@ def processAllMp4Files():
         print(f"chunks are ready")
 
         for i, chunk in enumerate(chunks):
-            chunk_name = f"processed/{file.id}/chunks/{i:04}-{chunk[1]}-({chunk[2]}).mp3"
+            chunk_name = f"processed/{file_id}/chunks/{i:04}-{chunk[1]}-({chunk[2]}).mp3"
             chunk[0].export(chunk_name, format="mp3")
             print(f"Сохранен отрезок: {chunk_name}")
 
         # Соберите все файлы по маске
-        file_paths = glob.glob(f"processed/{file.id}/chunks/????-SPEAKER_??-*.mp3")
+        file_paths = glob.glob(f"processed/{file_id}/chunks/????-SPEAKER_??-*.mp3")
 
         # Файл для сохранения результатов
-        result_file = f"processed/{file.id}/transcriptions.txt"
+        result_file = f"processed/{file_id}/transcriptions.txt"
 
         file_paths = sorted(file_paths)
         full_transcription = ""
@@ -186,8 +188,6 @@ def processAllMp4Files():
         f_end_time = time.time()  # End time
         f_processing_time = f_end_time - f_start_time  # Calculate processing time
 
-        file_id = file.id
-        file_name = file.file_name
         cur.execute("""
                 update movies 
                 set status='completed', transcription = %s, processing_time = %s 
