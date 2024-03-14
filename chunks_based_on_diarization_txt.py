@@ -113,7 +113,7 @@ def processAllMp4Files():
     conn = psycopg2.connect(**pgParams)
     cur = conn.cursor()
 
-    cur.execute("select m.id, m.file_name from transcription_requests tr left join  movies m on m.file_name = tr.file_name where tr.status = 'uploaded'")
+    cur.execute("select m.id as id, m.file_name as file_name from transcription_requests tr left join movies m on m.file_name = tr.file_name where tr.status = 'uploaded'")
     files = cur.fetchall()
     # List all .mp4 files in this folder
     for file in files:
