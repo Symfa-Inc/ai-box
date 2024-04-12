@@ -1,12 +1,24 @@
----
-title: Pyannote Speaker Diarization 3.1
-emoji: 😻
-colorFrom: gray
-colorTo: pink
-sdk: gradio
-sdk_version: 4.4.1
-app_file: app.py
-pinned: false
----
+## Building the Docker Image
+docker build -t transcriber
+## Running the Docker Container
 
-Check out the configuration reference at https://huggingface.co/docs/hub/spaces-config-reference
+To run the Docker container, use the following command:
+
+docker run -it -v /local/path/folder_with_videos/:usr/src/app/download transcriber
+
+Mount your local directory  to the container's `/usr/src/app/download` directory, so that the transcriber can access the files for processing
+
+## Environment Variables
+
+- `SPEAKER`:  `segmentation` or `diarization`.
+- `MODE`:  `CPU` or `GPU`.
+- `QUALITY`: `DEBUG`, `LOW`, `MEDIUM`, `HIGH`. 
+- `PARALLELISM`: Integer, default `1`.
+
+Websocket runs on  8765 port.
+
+Example request.
+{"file_path":"/usr/src/app/download/video.mp4"}. 
+
+Returns JSON with a transcription 
+{"result": transcription}.
