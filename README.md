@@ -4,7 +4,7 @@ docker build -t transcriber
 
 To run the Docker container, use the following command:
 
-docker run -it -v /local/path/folder_with_videos/:usr/src/app/download transcriber
+docker run -it -v /local/path/folder_with_videos:usr/src/app/download transcriber
 
 Mount your local directory  to the container's `/usr/src/app/download` directory, so that the transcriber can access the files for processing
 
