@@ -29,8 +29,16 @@ class BaseTask():
 
         self.dtype = "default" if cfg.quality == "high" else "int8"
         self.condition_on_previous_text = True if cfg.quality == "high" else False
-        self.best_of = 5 if cfg.quality == "high" else 2
-        self.beam_size = 5 if cfg.quality == "high" else 3
+        
+        if cfg.quality == "high":
+            self.best_of = 5
+            self.beam_size = 5 
+        elif cfg.quality == "debug":
+            self.best_of = 1
+            self.beam_size = 1
+        else:
+            self.best_of = 2 
+            self.beam_size = 3 
         
         self.whisper_model = WhisperModel(model_size_or_path=self.model_size, device=cfg.device, compute_type=self.dtype)
 
