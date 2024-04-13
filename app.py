@@ -21,21 +21,28 @@ def background_task(queue, model:Transcriber):
 
 
 async def send_result(file, result):
-    for socket, client_file in clients.items():
-        if client_file == file:
-
-            response = {"result": result}
-            response_json = json.dumps(response, ensure_ascii=False)
-            await socket.send(response_json)
-            await socket.close()
-            break
+    for client_id, (socket, client_files) in clients.items():
+        if client_id == socket.id:
+            if file in client_files:
+                response = {"result": result}
+                response_json = json.dumps(response, ensure_ascii=False)
+                await socket.send(response_json)
+                client_files.remove(file)
+            if not client_files:
+                await socket.close()
+                del clients[client_id]
+                break
 
 async def handler(websocket, queue):
     async for message in websocket:
         data = json.loads(message)
         file_path = data['file_path']
         queue.put(file_path)
-        clients[websocket] = file_path
+
+        client_id = websocket.id
+        clients.setdefault(client_id, (websocket, []))
+        clients[client_id][1].append(file_path)
+
         await websocket.send(f'{file_path} queued')
 
 async def main(cfg:Config, model:Transcriber):
