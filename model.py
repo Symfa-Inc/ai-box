@@ -159,7 +159,7 @@ class BaseTask():
                 speaker = match.group(1)
                 timecode = match.group(2)
                 transcription = self.transcribe_with_whisper(file_path)
-                formatted_transcription = f"{speaker}, time: {timecode}: {transcription}\n"
+                formatted_transcription = f"{speaker}, time: {timecode}: {transcription}\\n"
             else:
                 fileNamePattern = re.compile('\((.+)\)\.wav')
                 match = fileNamePattern.search(file_path)
