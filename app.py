@@ -36,7 +36,7 @@ async def send_result(file, result):
 async def handler(websocket, queue):
     async for message in websocket:
         data = json.loads(message)
-        file_path = data['file_path']
+        file_path = f'/usr/src/app/download/{data["file_path"]}'
         queue.put(file_path)
 
         client_id = websocket.id
