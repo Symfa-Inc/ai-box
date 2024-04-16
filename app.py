@@ -55,7 +55,7 @@ async def main(cfg:Config, model:Transcriber):
         t = Thread(target=background_task, args=(queue,model), daemon=True)
         t.start()
     
-    async with websockets.serve(lambda websocket: handler(websocket, queue), "0.0.0.0", 8765):
+    async with websockets.serve(lambda websocket: handler(websocket, queue), cfg.host, cfg.port):
         await asyncio.Future()
      
 
