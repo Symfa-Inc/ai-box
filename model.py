@@ -16,31 +16,31 @@ from config import Config
 
 class BaseTask():
 
-    def __init__(self, cfg:Config) -> None:
+    def __init__(self, quality, device) -> None:
 
-        if cfg.quality == "debug":
+        if quality == "debug":
             self.model_size = "tiny"
-        elif cfg.quality == "low":
+        elif quality == "low":
             self.model_size = "small"
-        elif cfg.quality == "medium":
+        elif quality == "medium":
             self.model_size = "medium"
         else:
             self.model_size = "large-v3"
 
-        self.dtype = "default" if cfg.quality == "high" else "int8"
-        self.condition_on_previous_text = True if cfg.quality == "high" else False
+        self.dtype = "default" if quality == "high" else "int8"
+        self.condition_on_previous_text = True if quality == "high" else False
         
-        if cfg.quality == "high":
+        if quality == "high":
             self.best_of = 5
             self.beam_size = 5 
-        elif cfg.quality == "debug":
+        elif quality == "debug":
             self.best_of = 1
             self.beam_size = 1
         else:
             self.best_of = 2 
             self.beam_size = 3 
         
-        self.whisper_model = WhisperModel(model_size_or_path=self.model_size, device=cfg.device, compute_type=self.dtype)
+        self.whisper_model = WhisperModel(model_size_or_path=self.model_size, device=device, compute_type=self.dtype)
 
     def extract_audio_from_video(self, video_path, wav_path):
         video = VideoFileClip(video_path)
@@ -174,22 +174,22 @@ class BaseTask():
 
 
 class Diarization(BaseTask):
-    def __init__(self, cfg: Config) -> None:
+    def __init__(self, cfg: Config, quality, device) -> None:
 
-        super().__init__(cfg)
+        super().__init__(quality, device)
 
-        self.pipe_name = "pyannote/speaker-diarization-3.1" if cfg.quality == "high" else "G-Root/speaker-diarization-optimized"
+        self.pipe_name = "pyannote/speaker-diarization-3.1" if quality == "high" else "G-Root/speaker-diarization-optimized"
 
         self.pipeline = Pipeline.from_pretrained(checkpoint_path=self.pipe_name, use_auth_token=cfg.hf_key)
-        self.pipeline.to(torch.device(cfg.device))
+        self.pipeline.to(torch.device(device))
 
     def process(self, file_path):
         return self.process_audio(file_path, self.pipeline, "processed")
 
   
 class Segmentation(BaseTask):
-    def __init__(self, cfg: Config) -> None:
-        super().__init__(cfg)
+    def __init__(self, cfg: Config, quality, device) -> None:
+        super().__init__(quality, device)
         self.model = Model.from_pretrained("pyannote/segmentation", use_auth_token=cfg.hf_key)
         self.hyper_params = {
           # onset/offset activation thresholds
@@ -201,18 +201,24 @@ class Segmentation(BaseTask):
         }
         self.pipeline = VoiceActivityDetection(segmentation=self.model)
         self.pipeline.instantiate(self.hyper_params)
-        self.pipeline.to(torch.device(cfg.device))
+        self.pipeline.to(torch.device(device))
 
     def process(self,file_path):
         return self.process_audio(file_path, self.pipeline, "processed")
 
 
 class Transcriber():
-    def __init__(self, cfg: Config) -> None:
-        if cfg.speaker == "segmentation":
-            self.model = Segmentation(cfg)
+    def __init__(self, cfg: Config, **params) -> None:
+        
+        self.speaker = params.get("speaker", cfg.speaker)
+        self.mode = params.get("mode", cfg.mode)
+        self.device = "cuda" if self.mode == "gpu" else "cpu"
+        self.quality = params.get("quality", cfg.quality)
+        
+        if self.speaker == "segmentation":
+            self.model = Segmentation(cfg, self.quality, self.device)
         else:
-            self.model = Diarization(cfg)
+            self.model = Diarization(cfg, self.quality, self.device)
 
     def run(self, file_path):
         return self.model.process(file_path)

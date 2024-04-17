@@ -1,20 +1,23 @@
 import asyncio
 import json
+import jsonschema.exceptions
 import websockets
 from queue import Queue
 from threading import Thread
 import time
+import pathlib
+import jsonschema
 
 from config import Config
 from model import Transcriber
 
 
-def background_task(queue, model:Transcriber):
+def background_task(queue):
     while True:
         if queue.empty() == False:
-            file = queue.get()
+            file, model = queue.get()
             result = model.run(file)
-            
+            del model
             asyncio.run_coroutine_threadsafe(send_result(file, result), loop)
             
         time.sleep(1) 
@@ -24,7 +27,12 @@ async def send_result(file, result):
     for client_id, (socket, client_files) in clients.items():
         if client_id == socket.id:
             if file in client_files:
-                response = {"result": result}
+                file_name = pathlib.Path(file).name
+
+                response = {
+                    "file_name": file_name,
+                    "result": result
+                }
                 response_json = json.dumps(response, ensure_ascii=False)
                 await socket.send(response_json)
                 client_files.remove(file)
@@ -34,25 +42,64 @@ async def send_result(file, result):
                 break
 
 async def handler(websocket, queue):
+
+    schema = {
+        "type": "object",
+        "properties": {
+            "file_path": {"type": "string"},
+            "speaker": {
+                "type": "string",
+                "enum": ["diarization", "segmentation"]
+            },
+            "mode": {
+                "type": "string",
+                "enum": ["cpu", "gpu"]
+            },
+            "quality": {
+                "type": "string",
+                "enum": ["debug", "low", "medium", "high"]
+            }
+        },
+        "required": ["file_path"]
+    }
+
     async for message in websocket:
-        data = json.loads(message)
-        file_path = f'/usr/src/app/download/{data["file_path"]}'
-        queue.put(file_path)
+        
+        try:
+            data = json.loads(message)
+            jsonschema.validate(instance=data, schema=schema)
+        except jsonschema.exceptions.ValidationError as ex:
+            await websocket.send(f"Bad request: {ex.message}")
+            await websocket.close()
+        except Exception as ex:
+            await websocket.send(f"Bad request: {ex}")
+            await websocket.close()
+        else:
 
-        client_id = websocket.id
-        clients.setdefault(client_id, (websocket, []))
-        clients[client_id][1].append(file_path)
+            file_path = f'/usr/src/app/download/{data["file_path"]}'
 
-        await websocket.send(f'{file_path} queued')
+            model = Transcriber(cfg, **data)
+            queue.put((file_path, model))
 
-async def main(cfg:Config, model:Transcriber):
+            client_id = websocket.id
+            clients.setdefault(client_id, (websocket, []))
+            clients[client_id][1].append(file_path)
+
+            response = {
+                "file_name": data["file_path"],
+                "result": "File queued"
+            }
+            response_json = json.dumps(response, ensure_ascii=False)
+            await websocket.send(response_json)
+
+async def main(cfg:Config):
     
     global loop
 
     loop = asyncio.get_running_loop()
     queue = Queue()
     for _ in range(cfg.parallelism):
-        t = Thread(target=background_task, args=(queue,model), daemon=True)
+        t = Thread(target=background_task, args=(queue,), daemon=True)
         t.start()
     
     async with websockets.serve(lambda websocket: handler(websocket, queue), cfg.host, cfg.port):
@@ -61,8 +108,7 @@ async def main(cfg:Config, model:Transcriber):
 
 if __name__ == "__main__":
     cfg = Config()
-    model = Transcriber(cfg)
     clients = {}
 
-    asyncio.run(main(cfg, model))
+    asyncio.run(main(cfg))
     
