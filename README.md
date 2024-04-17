@@ -58,6 +58,35 @@ You can change parameters of the server to find the optimal performance/quality 
 
 
 ## 3. How to work with the server.
+
+### Request and Response Formats
+All requests should follow the JSON format. Below is an example of a request to process a file:
+```json
+{
+  "file_path": "video.mp4",
+  "speaker": "diarization",
+  "mode": "cpu",
+  "quality": "medium"
+}
+```
+- `file_path` (required): Specifies the path to the input file.
+- `speaker`:  (optional): Specifies the desired processing mode, either `diarization` or `segmentation`.
+- `mode` (optional): Specifies the processing mode, either `gpu` or `cpu`.
+- `quality`(optional): Specifies the quality of processing, one of `debug`, `low`, `medium`, or `high`.
+
+Responses from  are also in JSON format. Below is an example response to the processing request:
+```json
+{
+  "type": "recording_processed",
+  "file_name": "video.wav",
+  "data": "{transcriptionText}"
+}
+```
+- `type`: Indicates the status of the processing. It can be "recording_queued" when the file is queued, "recording_processed" when the file is processed successfully, or "recording_errored" if processing failed.
+- `file_name`: Specifies the name of the input file. 
+- `data`(optional): Contains additional information. If processing is successful, it returns the result of the processing. If processing fails, it returns an error message explaining the failure.
+
+
 ### 3.1 JavaScript
 ```javascript
 const WebSocket = require('ws');
@@ -74,8 +103,8 @@ ws.on('open', function open() {
 });
 
 ws.on('message', function incoming(message) {
-    //{"result": "transcriptionText"}.
-    console.log('Message from server: %s', message.result);
+    //{"data": "transcriptionText"}.
+    console.log('Message from server: %s', message.data);
 });
 
 ```
@@ -92,14 +121,16 @@ async def talk():
     async with websockets.connect(uri) as websocket:
         print("Connected to server")
         message = {
-            'file_path': "video.mp4"
+            'file_path': "video.mp4",
+            'speaker': "segmentation",
+            'quality': "medium"
         }
         await websocket.send(json.dumps(message))
 
         response = await websocket.receive()
-        data = json.loads(response)
+        response_json = json.loads(response)
         # {"result": "transcriptionText"}.
-        print(f"Message from server: {data.result}")
+        print(f"Message from server: {response_json.data}")
 
 asyncio.run(talk())
 ```
