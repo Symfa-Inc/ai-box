@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 import os
+import enum
 
 
 @dataclass
@@ -20,3 +21,8 @@ class Config:
         if self.mode == "gpu" and self.quality == "low":
             self.quality = "high"
 
+
+class ResponseType(enum.Enum):
+    recording_queued = 1
+    recording_processed = 2
+    recording_errored = 3

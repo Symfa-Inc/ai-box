@@ -8,7 +8,7 @@ import time
 import pathlib
 import jsonschema
 
-from config import Config
+from helpers import Config, ResponseType
 from model import Transcriber
 
 
@@ -16,9 +16,23 @@ def background_task(queue):
     while True:
         if queue.empty() == False:
             file, model = queue.get()
-            result = model.run(file)
-            del model
-            asyncio.run_coroutine_threadsafe(send_result(file, result), loop)
+            try:
+                result = model.run(file)
+                type = ResponseType.recording_processed.name
+            except Exception as ex:
+                result = str(ex)
+                type = ResponseType.recording_errored.name
+            finally:
+                del model
+
+                file_name = pathlib.Path(file).name
+                response = {
+                        "type": type,
+                        "file_name": file_name,
+                        "data": result
+                }
+                response_json = json.dumps(response, ensure_ascii=False)
+                asyncio.run_coroutine_threadsafe(send_result(file, response_json), loop)
             
         time.sleep(1) 
 
@@ -27,14 +41,7 @@ async def send_result(file, result):
     for client_id, (socket, client_files) in clients.items():
         if client_id == socket.id:
             if file in client_files:
-                file_name = pathlib.Path(file).name
-
-                response = {
-                    "file_name": file_name,
-                    "result": result
-                }
-                response_json = json.dumps(response, ensure_ascii=False)
-                await socket.send(response_json)
+                await socket.send(result)
                 client_files.remove(file)
             if not client_files:
                 await socket.close()
@@ -77,7 +84,6 @@ async def handler(websocket, queue):
         else:
 
             file_path = f'/usr/src/app/download/{data["file_path"]}'
-
             model = Transcriber(cfg, **data)
             queue.put((file_path, model))
 
@@ -86,8 +92,8 @@ async def handler(websocket, queue):
             clients[client_id][1].append(file_path)
 
             response = {
-                "file_name": data["file_path"],
-                "result": "File queued"
+                "type": ResponseType.recording_queued.name,
+                "file_name": data["file_path"]
             }
             response_json = json.dumps(response, ensure_ascii=False)
             await websocket.send(response_json)

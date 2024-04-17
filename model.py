@@ -12,7 +12,7 @@ from moviepy.editor import VideoFileClip
 from recordclass import recordclass
 import shutil
 
-from config import Config
+from helpers import Config
 
 class BaseTask():
 
@@ -103,7 +103,7 @@ class BaseTask():
     def process_audio(self, file_path, pipeline, output_dir):
 
         if not pathlib.Path(file_path).is_file():
-            return "Invalid path or file does not exists"
+            raise FileNotFoundError("Invalid path or file does not exists")
         
         file_name = pathlib.Path(file_path).stem
        
