@@ -64,9 +64,9 @@ All requests should follow the JSON format. Below is an example of a request to 
 ```json
 {
   "file_path": "video.mp4",
-  "speaker": "diarization",
-  "mode": "cpu",
-  "quality": "medium"
+  "speaker": "diarization", //optional
+  "mode": "cpu",            //optional
+  "quality": "medium"       //optional
 }
 ```
 - `file_path` (required): Specifies the path to the input file.

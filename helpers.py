@@ -26,3 +26,4 @@ class ResponseType(enum.Enum):
     recording_queued = 1
     recording_processed = 2
     recording_errored = 3
+    gpt_message = 4
