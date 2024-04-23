@@ -10,7 +10,7 @@ import jsonschema
 
 from helpers import Config, ResponseType
 from model import Transcriber
-
+from chat_model import ChatAPI
 
 def background_task(queue):
     while True:
@@ -50,9 +50,10 @@ async def send_result(file, result):
 
 async def handler(websocket, queue):
 
-    schema = {
+    fileUploadSchema = {
         "type": "object",
         "properties": {
+            "operation": {"type": "string"},
             "file_path": {"type": "string"},
             "speaker": {
                 "type": "string",
@@ -71,32 +72,43 @@ async def handler(websocket, queue):
     }
 
     async for message in websocket:
-        
-        try:
-            data = json.loads(message)
-            jsonschema.validate(instance=data, schema=schema)
-        except jsonschema.exceptions.ValidationError as ex:
-            await websocket.send(f"Bad request: {ex.message}")
-            await websocket.close()
-        except Exception as ex:
-            await websocket.send(f"Bad request: {ex}")
-            await websocket.close()
-        else:
 
-            file_path = f'/usr/src/app/download/{data["file_path"]}'
-            model = Transcriber(cfg, **data)
-            queue.put((file_path, model))
+        data = json.loads(message)
 
-            client_id = websocket.id
-            clients.setdefault(client_id, (websocket, []))
-            clients[client_id][1].append(file_path)
-
+        if data.operation == "gpt_message":
+            chatApi = ChatAPI(cfg)
+            message = chatApi.get_message(data.query)
             response = {
-                "type": ResponseType.recording_queued.name,
-                "file_name": data["file_path"]
+                "type": ResponseType.gpt_message.name,
+                "response": message
             }
             response_json = json.dumps(response, ensure_ascii=False)
             await websocket.send(response_json)
+        elif data.operation == "transcript_file":
+            try:
+                jsonschema.validate(instance=data, schema=fileUploadSchema)
+            except jsonschema.exceptions.ValidationError as ex:
+                await websocket.send(f"Bad request: {ex.message}")
+                # await websocket.close()
+            except Exception as ex:
+                await websocket.send(f"Bad request: {ex}")
+                # await websocket.close()
+            else:
+
+                file_path = f'/usr/src/app/download/{data["file_path"]}'
+                model = Transcriber(cfg, **data)
+                queue.put((file_path, model))
+
+                client_id = websocket.id
+                clients.setdefault(client_id, (websocket, []))
+                clients[client_id][1].append(file_path)
+
+                response = {
+                    "type": ResponseType.recording_queued.name,
+                    "file_name": data["file_path"]
+                }
+                response_json = json.dumps(response, ensure_ascii=False)
+                await websocket.send(response_json)
 
 async def main(cfg:Config):
     

@@ -16,23 +16,23 @@ class ChatAPI:
 
         # Model and tokenizer setup
         model_id: str = "gorilla-llm/gorilla-openfunctions-v2"  ##LLama tuned for function calling
-        tokenizer = AutoTokenizer.from_pretrained(model_id)
-        model = AutoModelForCausalLM.from_pretrained(model_id, torch_dtype=torch_dtype, low_cpu_mem_usage=True)
+        # tokenizer = AutoTokenizer.from_pretrained(model_id)
+        # model = AutoModelForCausalLM.from_pretrained(model_id, torch_dtype=torch_dtype, low_cpu_mem_usage=True)
 
         # Move model to device
-        model.to(device)
+        # model.to(device)
 
         self.config = cfg
         # Pipeline setup
-        self.fPipe = pipeline(
-            "text-generation",
-            model=model,
-            tokenizer=tokenizer,
-            max_new_tokens=1024,
-            # batch_size=16,
-            torch_dtype=torch_dtype,
-            device=device,
-        )
+        # self.fPipe = pipeline(
+        #     "text-generation",
+        #     model=model,
+        #     tokenizer=tokenizer,
+        #     max_new_tokens=1024,
+        #     # batch_size=16,
+        #     torch_dtype=torch_dtype,
+        #     device=device,
+        # )
 
         quantization_config = BitsAndBytesConfig(load_in_8bit=True)
         self.tModel = AutoModelForCausalLM.from_pretrained(
@@ -62,15 +62,15 @@ class ChatAPI:
     def get_message(self, user_query: str, functions: list = []):
         prompt = self.get_prompt(user_query, functions=functions)
         text = prompt
-        if len(functions) != 0:
-            resp = self.fPipe(prompt)
-            text = resp[0]['generated_text']
+        # if len(functions) != 0:
+        #     resp = self.fPipe(prompt)
+        #     text = resp[0]['generated_text']
 
         if (text.find("Response:  <<function>>") == -1):
             input_ids = self.tokenizer(prompt, return_tensors="pt").to(self.config.device)
             outputs = self.tModel.generate(**input_ids, max_new_tokens=1000)
             decoded = self.tokenizer.batch_decode(outputs)
-            return decoded
+            return decoded[0].replace("<bos>", "").replace("<eos>", "")
         else:
             return text
 

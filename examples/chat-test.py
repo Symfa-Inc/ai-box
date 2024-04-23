@@ -16,9 +16,9 @@ functions = [
         ]
     }
 ]
-query = "Call me an Uber ride type \"Plus\" in Berkeley at zipcode 94704 in 10 minutes"
+query = "Кто такой Пушкин?"
 
 
-message = chatApi.get_message(query, functions)
+message = chatApi.get_message(query)
 
 print(message)
